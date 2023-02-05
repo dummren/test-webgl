@@ -145,18 +145,20 @@
 		var far = 100.0
 		
 		var cam = {
-			'pos': [0, 1, 2],
-			'rot': [-25, 0, 0],
+			pos: [0, 1, 2],
+			rot: [-25, 0, 0],
 		}
 		
 		var object = {
-			'pos': [0, 0, 0],
-			'rot': [0, 0, 0],
+			pos: [0, 0, 0],
+			rot: [0, 0, 0],
 		}
 		
 		function bodyLoad() {
 			canvas = document.getElementById('canvas');
-			gl = canvas.getContext('experimental-webgl');
+			gl = canvas.getContext('experimental-webgl', {
+				antialias: true,
+			});
 			
 			prog = gl.createProgram();
 			vs = gl.createShader(gl.VERTEX_SHADER);
