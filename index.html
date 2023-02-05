@@ -1,0 +1,274 @@
+<!-- yea shitcode :D -->
+<!-- (first webgl project) -->
+<!-- (first normal web project) -->
+
+<!DOCTYPE html>
+<html>
+
+<head>
+	
+	<meta charset="utf-8" user-scalable="no" content="width=device-width, initial-scale=1.0">
+	<title>Test WebGL</title>
+	<link rel="stylesheet" href="styles.css">
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/html-gl/0.3.1/htmlgl.js"></script>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/3.4.2/gl-matrix.js"></script>
+	
+	<script type="text/javascript">
+		let VERTEX_SHADER = `
+		attribute vec3 vVert;
+		attribute vec4 vCol;
+		
+		varying vec3 fVert;
+		varying vec4 fCol;
+		
+		uniform mat4 projMat, viewMat, transMat;
+		
+		void main() {
+			gl_Position = projMat * viewMat * transMat * vec4(vVert, 1.0);
+			fVert = vVert;
+			fCol = vCol;
+		}
+		`.split('\n').map(line => line.trim()).join('\n').substring(1);
+		
+		let FRAGMENT_SHADER = `
+		precision mediump float;
+		
+		varying vec3 fVert;
+		varying vec4 fCol;
+		
+		void main() {
+			gl_FragColor = fCol;
+		}
+		`.split('\n').map(line => line.trim()).join('\n').substring(1);
+		
+		var canvas;
+		var gl;
+		
+		var prog;
+		var vs;
+		var fs;
+		
+		var vertexBuffer;
+		var indexBuffer;
+		var colorBuffer;
+		
+		var vertices = [
+			-0.5, -0.5, -0.5,
+			0.5, -0.5, -0.5,
+			0.5, 0.5, -0.5,
+			-0.5, 0.5, -0.5,
+			
+			-0.5, 0.5, -0.5,
+			-0.5, -0.5, -0.5,
+			-0.5, -0.5, 0.5,
+			-0.5, 0.5, 0.5,
+			
+			-0.5, 0.5, 0.5,
+			0.5, 0.5, 0.5,
+			0.5, -0.5, 0.5,
+			-0.5, -0.5, 0.5,
+			
+			0.5, 0.5, 0.5,
+			0.5, -0.5, 0.5,
+			0.5, -0.5, -0.5,
+			0.5, 0.5, -0.5,
+			
+			0.5, 0.5, 0.5,
+			-0.5, 0.5, 0.5,
+			-0.5, 0.5, -0.5,
+			0.5, 0.5, -0.5,
+			
+			0.5, -0.5, 0.5,
+			-0.5, -0.5, 0.5,
+			-0.5, -0.5, -0.5,
+			0.5, -0.5, -0.5,
+		];
+		
+		var indices = [
+			0, 1, 2,
+			2, 3, 0,
+			
+			4, 5, 6,
+			6, 7, 4,
+			
+			8, 9, 10,
+			10, 11, 8,
+			
+			12, 13, 14,
+			14, 15, 12,
+			
+			16, 17, 18,
+			18, 19, 16,
+			
+			20, 21, 22,
+			22, 23, 20,
+		];
+		
+		var colors = [
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			0.0, 0.0, 1.0, 1.0,
+			1.0, 1.0, 1.0, 1.0,
+			
+			1.0, 0.0, 0.0, 1.0,
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 0.0, 1.0, 1.0,
+			1.0, 1.0, 1.0, 1.0,
+			
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			0.0, 0.0, 1.0, 1.0,
+			1.0, 1.0, 1.0, 1.0,
+			
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			1.0, 1.0, 1.0, 1.0,
+			
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			0.0, 0.0, 1.0, 1.0,
+			1.0, 1.0, 1.0, 1.0,
+			
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+			1.0, 0.0, 0.0, 1.0,
+			0.0, 1.0, 0.0, 1.0,
+		];
+		
+		var projMatLoc;
+		var viewMatLoc;
+		var transMatLoc;
+		
+		var fov = 75.0
+		var near = 0.01
+		var far = 100.0
+		
+		var cam = {
+			'pos': [0, 1, 2],
+			'rot': [-25, 0, 0],
+		}
+		
+		var object = {
+			'pos': [0, 0, 0],
+			'rot': [0, 0, 0],
+		}
+		
+		function bodyLoad() {
+			canvas = document.getElementById('canvas');
+			gl = canvas.getContext('experimental-webgl');
+			
+			prog = gl.createProgram();
+			vs = gl.createShader(gl.VERTEX_SHADER);
+			fs = gl.createShader(gl.FRAGMENT_SHADER);
+			
+			gl.shaderSource(vs, VERTEX_SHADER);
+			gl.compileShader(vs);
+			
+			if (gl.getShaderParameter(vs, gl.COMPILE_STATUS) == false)
+				console.error(`failed to compile vertex shader. error: ${gl.getShaderInfoLog(vs)}`);
+			
+			gl.shaderSource(fs, FRAGMENT_SHADER);
+			gl.compileShader(fs);
+			
+			if (gl.getShaderParameter(fs, gl.COMPILE_STATUS) == false)
+				console.error(`failed to compile fragment shader. error: ${gl.getShaderInfoLog(fs)}`);
+			
+			gl.attachShader(prog, vs);
+			gl.attachShader(prog, fs);
+			gl.linkProgram(prog);
+			
+			if (gl.getProgramParameter(prog, gl.LINK_STATUS) == false)
+				console.error(`failed to link program. error: ${gl.getProgramInfoLog(prog)}`);
+			
+			vertexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+			gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(0);
+			gl.bindBuffer(gl.ARRAY_BUFFER, gl.FALSE);
+			
+			indexBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+			gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.FALSE);
+			
+			colorBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+			gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(1);
+			gl.bindBuffer(gl.ARRAY_BUFFER, gl.FALSE);
+			
+			gl.enable(gl.DEPTH_TEST);
+			gl.clearColor(0.0, 0.1, 0.2, 1.0);
+			
+			gl.useProgram(prog);
+			
+			projMatLoc = gl.getUniformLocation(prog, 'projMat');
+			viewMatLoc = gl.getUniformLocation(prog, 'viewMat');
+			transMatLoc = gl.getUniformLocation(prog, 'transMat');
+			
+			gl.useProgram(gl.FALSE);
+			
+			loop();
+		}
+		
+		function deg2rad(deg) {
+			return deg * (Math.PI / 180);
+		}
+		
+		function loop() {
+			var projMat = glMatrix.mat4.create();
+			projMat = glMatrix.mat4.perspective(projMat, deg2rad(fov), document.body.clientWidth / document.body.clientHeight, near, far);
+			
+			var viewMat = glMatrix.mat4.create();
+			var transMat = glMatrix.mat4.create();
+			
+			viewMat = glMatrix.mat4.rotateX(viewMat, viewMat, deg2rad(-cam.rot[0]));
+			viewMat = glMatrix.mat4.rotateY(viewMat, viewMat, deg2rad(-cam.rot[1]));
+			viewMat = glMatrix.mat4.rotateZ(viewMat, viewMat, deg2rad(-cam.rot[2]));
+			
+			viewMat = glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(-cam.pos[0], -cam.pos[1], -cam.pos[2]));
+			
+			transMat = glMatrix.mat4.rotateX(transMat, transMat, deg2rad(object.rot[0]));
+			transMat = glMatrix.mat4.rotateY(transMat, transMat, deg2rad(object.rot[1]));
+			transMat = glMatrix.mat4.rotateZ(transMat, transMat, deg2rad(object.rot[2]));
+			
+			transMat = glMatrix.mat4.translate(transMat, transMat, glMatrix.vec3.fromValues(object.pos[0], object.pos[1], object.pos[2]));
+			
+			canvas.width = document.body.clientWidth;
+			canvas.height = document.body.clientHeight;
+			
+			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+			gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+			
+			gl.useProgram(prog);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+			
+			gl.uniformMatrix4fv(projMatLoc, false, new Float32Array(projMat));
+			gl.uniformMatrix4fv(viewMatLoc, false, new Float32Array(viewMat));
+			gl.uniformMatrix4fv(transMatLoc, false, new Float32Array(transMat));
+			
+			object.rot[0] -= 1.5;
+			object.rot[1] -= 1.5;
+			
+			gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+			
+			gl.useProgram(gl.FALSE);
+			gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.FALSE);
+			
+			window.requestAnimationFrame(loop);
+		}
+		
+	</script>
+	
+</head>
+
+<body onload="bodyLoad()" oncontextmenu="return false;">
+	
+	<canvas id="canvas" class="canvas"></canvas>
+	
+</body>
+
+</html>
