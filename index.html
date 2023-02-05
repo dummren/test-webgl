@@ -154,6 +154,14 @@
 			rot: [0, 0, 0],
 		}
 		
+		var isRotating = false;
+		
+		let GRAVITY = 0.01;
+		let JUMP_FORCE = 0.1;
+		var objectYVelocity = 0;
+		
+		var cantJumpTimes = 2;
+		
 		function bodyLoad() {
 			canvas = document.getElementById('canvas');
 			gl = canvas.getContext('experimental-webgl', {
@@ -213,6 +221,44 @@
 			
 			gl.useProgram(gl.FALSE);
 			
+			document.onkeydown = function(event) {
+				switch (String.fromCharCode(event.which).toLowerCase()) {
+					case ' ':
+						jump();
+						break;
+					case 't':
+						isRotating = !isRotating;
+						break; 
+					case 'r':
+						object.rot[0] = 0;
+						object.rot[1] = 0;
+						object.rot[2] = 0;
+						break;
+					default:
+						break;
+				}
+			}
+			
+			document.ondblclick = function() {
+				object.rot[0] = 0;
+				object.rot[1] = 0;
+				object.rot[2] = 0;
+				
+				cantJumpTimes = 2;
+			}
+			
+			document.onclick = function() {
+				if (cantJumpTimes == 0)
+					jump();
+				
+				cantJumpTimes--;
+			}
+			
+			document.oncontextmenu = function() {
+				isRotating = !isRotating;
+				return false;
+			}
+			
 			loop();
 		}
 		
@@ -221,11 +267,26 @@
 		}
 		
 		function loop() {
+			object.pos[1] += objectYVelocity;
+			if (object.pos[1] <= 0)
+				object.pos[1] = 0
+			else {
+				objectYVelocity -= GRAVITY;
+				object.rot[0] += 90 / 21;
+				object.rot[1] += 90 / 21;
+				object.rot[2] += 90 / 21;
+			}
+			
+			if (isRotating) {
+				object.rot[0] += 30 / 21;
+				object.rot[1] += 30 / 21;
+				object.rot[2] += 30 / 21;
+			}
+			
 			var projMat = glMatrix.mat4.create();
 			projMat = glMatrix.mat4.perspective(projMat, deg2rad(fov), document.body.clientWidth / document.body.clientHeight, near, far);
 			
 			var viewMat = glMatrix.mat4.create();
-			var transMat = glMatrix.mat4.create();
 			
 			viewMat = glMatrix.mat4.rotateX(viewMat, viewMat, deg2rad(-cam.rot[0]));
 			viewMat = glMatrix.mat4.rotateY(viewMat, viewMat, deg2rad(-cam.rot[1]));
@@ -233,11 +294,13 @@
 			
 			viewMat = glMatrix.mat4.translate(viewMat, viewMat, glMatrix.vec3.fromValues(-cam.pos[0], -cam.pos[1], -cam.pos[2]));
 			
+			var transMat = glMatrix.mat4.create();
+			
+			transMat = glMatrix.mat4.translate(transMat, transMat, glMatrix.vec3.fromValues(object.pos[0], object.pos[1], object.pos[2])); 
+			
 			transMat = glMatrix.mat4.rotateX(transMat, transMat, deg2rad(object.rot[0]));
 			transMat = glMatrix.mat4.rotateY(transMat, transMat, deg2rad(object.rot[1]));
 			transMat = glMatrix.mat4.rotateZ(transMat, transMat, deg2rad(object.rot[2]));
-			
-			transMat = glMatrix.mat4.translate(transMat, transMat, glMatrix.vec3.fromValues(object.pos[0], object.pos[1], object.pos[2]));
 			
 			canvas.width = document.body.clientWidth;
 			canvas.height = document.body.clientHeight;
@@ -252,9 +315,6 @@
 			gl.uniformMatrix4fv(viewMatLoc, false, new Float32Array(viewMat));
 			gl.uniformMatrix4fv(transMatLoc, false, new Float32Array(transMat));
 			
-			object.rot[0] -= 1.5;
-			object.rot[1] -= 1.5;
-			
 			gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
 			
 			gl.useProgram(gl.FALSE);
@@ -263,13 +323,19 @@
 			window.requestAnimationFrame(loop);
 		}
 		
+		function jump() {
+			if (object.pos[1] == 0)
+				objectYVelocity = JUMP_FORCE
+		}
+		
 	</script>
 	
 </head>
 
-<body onload="bodyLoad()" oncontextmenu="return false;">
+<body onload="bodyLoad()">
 	
 	<canvas id="canvas" class="canvas"></canvas>
+	<h3 class="hint">[space], mouse click or touch - jump<br>[t], context menu or long press - toggle rotation<br>[r] or double-click</h3>
 	
 </body>
 
