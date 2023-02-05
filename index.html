@@ -161,8 +161,6 @@
 		let JUMP_FORCE = 0.1;
 		var objectYVelocity = 0;
 		
-		var cantJumpTimes = 2;
-		
 		function bodyLoad() {
 			canvas = document.getElementById('canvas');
 			gl = canvas.getContext('experimental-webgl', {
@@ -240,24 +238,21 @@
 				}
 			}
 			
-			document.ondblclick = function() {
+			document.oncontextmenu = function() {
 				object.rot[0] = 0;
 				object.rot[1] = 0;
 				object.rot[2] = 0;
 				
-				cantJumpTimes = 2;
-			}
-			
-			document.onclick = function() {
-				if (cantJumpTimes == 0)
-					jump();
-				
-				cantJumpTimes--;
-			}
-			
-			document.oncontextmenu = function() {
-				isRotating = !isRotating;
 				return false;
+			}
+			
+			document.ondblclick = function() {
+				isRotating = !isRotating;
+			}
+			
+			document.onclick = function(event) {
+				if (event.originalEvent.detail > 1)
+					jump();
 			}
 			
 			loop();
@@ -336,7 +331,7 @@
 <body onload="bodyLoad()">
 	
 	<canvas id="canvas" class="canvas"></canvas>
-	<h3 class="hint">[space], mouse click or touch - jump<br>[t], context menu or long press - toggle rotation<br>[r] or double-click - reset rotation</h3>
+	<h3 class="hint">[space], mouse click or touch - jump<br>[r], context menu or long press - reset rotation<br>[t] or double-click - toogle rotation</h3>
 	
 </body>
 
