@@ -157,8 +157,10 @@
 		function bodyLoad() {
 			canvas = document.getElementById('canvas');
 			gl = canvas.getContext('experimental-webgl', {
-				antialias: true,
+				antialias: !navigator.userAgent.toLowerCase().includes('android'),
 			});
+			
+			alert(navigator.userAgent.toLowerCase().includes('android'));
 			
 			prog = gl.createProgram();
 			vs = gl.createShader(gl.VERTEX_SHADER);
